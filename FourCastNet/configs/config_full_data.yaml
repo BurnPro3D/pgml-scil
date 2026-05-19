@@ -1,0 +1,79 @@
+# random seed for reproducibility
+seed: 43
+
+# Model Architecture Configuration
+# ------------------------------
+image_size: 296           # Input image resolution. DO NOT MODIFY (fixed for AFNO-based models)
+patch_size: 8             # Patch size for tokenization (image is divided into 4x4 patches)
+out_channels: 1           # Number of output channels; 1 corresponds to fuel density. DO NOT MODIFY
+num_pred_frames: 4        # Number of future frames to predict; should be 1 for AFNONet. DO NOT MODIFY
+future: 8                 # Number of frames into the future to predict (e.g., future=1 predicts t+1)
+num_train_files: 50    # Number of training files to use (each file has 40 sequences of 16 frames)
+num_val_files: 11       # Number of validation files to use
+num_test_files: 50     # Number of test files to use
+
+exclude_ignition: false
+exclude_sourcemap: false
+teacher_forcing: false
+
+use_fuel_model: true       # extends AFNO model architecture
+mixture_type: null         # choices: [null, "gaussian", "poisson", "concrete"]
+max_fuel_dens: null        # if not None, then predicted fuel density is clamped between 0 and max
+
+context_len: 8            # Temporal context window size. MUST remain 1 for standard AFNONet. DO NOT MODIFY
+temporal_patch_size: 4    # (Keep fixed for AFNOnet) Number of frames in each tubelet's time dimension
+embed_dim: 256             # Dimensionality of token embeddings
+depth: 4                  # Number of transformer layers in the AFNO model
+num_blocks: 4            # Number of spatial frequency blocks (higher = more spatial detail)
+
+# physics loss weights (irrelevant when physics_loss=False)
+physics_loss: true
+fuel_transport_weight: 1.0
+burned_weight: 1.0
+unburned_weight: 0.1
+fire_metrics_weight: 0.1
+mse_weight: 1.0             # Weight for standard MSE loss on fuel density
+ros_method: "horizontal_instant"   # options: [horizontal_instant, horizontal_average, perimeter_displacement]
+# burned_thresh: 0.1         # fuel density below this classified as burned cell (from Somya's paper)
+# unburned_thresh: 0.65      # fuel density above this classified as unburned cell (from Somya's paper)
+
+# Training Configuration
+# --------------------
+max_epochs: 50
+batch_size: 16
+mini_batch_size: 4        # for gradient accumulation
+temporal_stride: 2         # data window samples stride. Dont modify
+
+# Hardware utilization
+num_workers: 2             # number of data loading workers
+prefetch_factor: 2         # how many batches are queued to be loaded next
+max_gpu_utilization: 0.95            # maximum GPU memory usage
+torch_compile: false       # enables torch.jit optimization. Switch to True if it works for you. 
+enable_amp: true           # mixed precision training uses both float32 and float16 data types to reduce memory usage, speedup training
+mixed_prec_dtype: "bfloat16"    # choices: ["float16", "bfloat16"]
+
+# Optimizer Configuration
+# ---------------------
+max_lr: 1.0e-3             # max and min lr are for cosine learning rate decay
+min_lr: 1.0e-5
+weight_decay: 1.0e-2
+
+# early stopping parameters
+early_stopping_patience: 5        # epochs to wait until stopping training
+early_stopping_min_delta: 1.0e-4     # Dont modify
+
+# Data and Logging Configuration
+# ----------------
+which_data: "data_full"         # choices: ['data_lite', 'data_full']
+logging_framework: "mlflow"       # choices: ['wandb', 'mlflow', 'local']
+log_interval: 100            # log every few steps (each step is a weight update)
+
+# log_dir: "/home/pgmlvol/sazim/pgml/FourCastNet/logs/"
+data_dir: "/home/pgmlvol/data/data_lite_600_5050/"
+
+# mlflow specific settings
+mlflow_tracking_uri: "/home/pgmlvol/mlflow2/"     # log and store metrics, params and artifacts
+experiment_name: "afno-prelu-pg-str1-fut6-out3"
+
+# wandb specific settings
+# wandb_api_key: "292f6261d8c8484ee7c2a45bb660e2d655e762a7"

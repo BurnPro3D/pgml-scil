@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgmlvol2    # volume name
+spec:
+  # more info about storage class here: https://ucsd-prp.gitlab.io/userdocs/storage/ceph/
+  # storageClassName: rook-cephfs    # Region: US West
+  storageClassName: rook-cephfs-central    # Region: US Central
+  # storageClassName: rook-cephfs-east    # Region: US East
+  accessModes:
+  - ReadWriteMany    # Ceph shared filesystem (CephFS) is the primary way of storing data in nautilus and allows mounting same volumes from multiple pods in parallel
+  # - ReadWriteOnce    # Ceph block storage allows RBD (Rados Block Devices) to be attached to a single pod at a time
+  resources:
+    requests:
+      storage: 1Ti

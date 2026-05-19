@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: siriusjob1
+  namespace: pgml
+spec:
+  template:
+    # metadata:
+    #   labels:
+    #     k8s-app: siriusjob1
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              # - key: topology.kubernetes.io/region
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                # - us-west
+                - NVIDIA-GeForce-GTX-1080-Ti
+                - NVIDIA-GeForce-RTX-2080-Ti
+                - NVIDIA-TITAN-RTX
+                - NVIDIA-GeForce-RTX-3090
+                - NVIDIA-A100-80GB-PCIe-MIG-1g.10gb
+                - NVIDIA-A10
+      containers:
+      - name: pgml-container
+        image: saqib1707/pgml:v1.0.0
+        command:
+        - "bash"
+        # - "python3"
+        args:
+        - "/home/pgmlvol/sazim/pgml/job_startup.sh"
+        # - "/home/pgmlvol/sazim/pgml/src/train/train.py"
+        resources:
+            limits:
+              memory: 32Gi
+              cpu: 16
+              nvidia.com/gpu: 1
+            requests:
+              memory: 16Gi
+              cpu: 8
+              nvidia.com/gpu: 1
+        volumeMounts:
+        - name: pgmlvol
+          mountPath: /home/pgmlvol/
+        - name: cache-vol
+          mountPath: /dev/shm
+      volumes:
+      - name: pgmlvol
+        persistentVolumeClaim:
+          claimName: pgmlvol
+      - name: cache-vol
+        emptyDir:
+          medium: Memory 
+          # sizeLimit: 16Gi
+      restartPolicy: Never
+  backoffLimit: 0

@@ -1,0 +1,10 @@
+============================================================
+Table 4: Model inference time summary statistics
+for predicting test sequence with 50 time steps
+(in seconds) averaged over 10 repetitions.
+============================================================
+Model        ConvLSTM  AFNONet  ViViT
+Minimum (s)      1.16     0.12   3.55
+Mean (s)         1.49     0.13   5.76
+Maximum (s)      1.92     0.15   7.98
+============================================================

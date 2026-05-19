@@ -1,0 +1,34 @@
+numpy
+opencv-python
+Pillow
+matplotlib
+scipy
+scikit-learn
+pandas
+geopandas
+ruamel.yaml
+wandb
+tqdm
+requests
+typing-extensions
+ipykernel
+jupyter
+notebook
+pyogrio
+s3fs
+zarr[jupyter]
+cmocean
+einops
+transformers
+tiktoken
+mlflow
+tensorflow-probability[tf]
+torch
+torchvision
+timm
+# nvidia-cublas-cu11==11.10.3.66
+# nvidia-cuda-nvrtc-cu11==11.8.89
+# nvidia-cuda-runtime-cu11==11.8.89
+# nvidia-cudnn-cu11==8.6.0.163
+# tensorflow[and-cuda]
+# tensorboard==2.13.0

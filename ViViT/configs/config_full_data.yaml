@@ -1,0 +1,88 @@
+# Basic configuration for reproducibility
+seed: 43
+
+# Model Architecture Configuration
+# ------------------------------
+image_size: 296
+in_channels: 5
+out_channels: 1            # refers to fuel density channel. Dont modify
+num_pred_frames: 4         # how many future frames to predict. Dont modify
+num_train_files: 50    # Number of training files to use (each file has 40 sequences of 16 frames)
+num_val_files: 11       # Number of validation files to use
+num_test_files: 50     # Number of test files to use
+
+
+
+exclude_ignition: false
+exclude_sourcemap: false
+teacher_forcing: false
+
+# ViViT specific parameters
+context_len: 8              # temporal context window size
+future: 8                   # how many frames into the future to predict (e.g., future=1 predicts t+1)
+tubelet_size: [4, 8, 8]   # [temporal, height, width]
+embed_dim: 128              # token embedding dimension
+hidden_dim: 256            # hidden layer dimension (general rule: embed_dim x 2)
+num_blocks: 4               # number of transformer encoder blocks
+num_attn_heads: 4           # number of attention heads
+
+# Model weights
+# pretrained_path: "google/vivit-b-16x2-kinetics400"    # uncomment for pretrained model
+pretrained_path: ""
+
+# physics loss weights (irrelevant when physics_loss=False)
+physics_loss: true
+fuel_transport_weight: 0.01
+burned_weight: 0.1
+unburned_weight: 0.1
+fire_metrics_weight: 0.01
+mse_weight: 1.0             # Weight for standard MSE loss on fuel density
+ros_method: "horizontal_instant"       # options: [horizontal_instant, horizontal_average, perimeter_displacement]
+# burned_thresh: 0.1         # fuel density below this classified as burned cell (from Somya's paper)
+# unburned_thresh: 0.65      # fuel density above this classified as unburned cell (from Somya's paper)
+
+# Training Configuration
+# --------------------
+max_epochs: 1
+batch_size: 16
+mini_batch_size: 2
+temporal_stride: 1
+dropout: 0.1                # regularization, prevents overfitting
+
+# Hardware utilization
+num_workers: 2             # number of data loading workers
+prefetch_factor: 2         # how many batches are queued to be loaded next
+max_gpu_utilization: 0.95            # maximum GPU memory usage
+torch_compile: false       # enables torch.jit optimization. Switch to True if it works for you. 
+enable_amp: true           # mixed precision training uses both float32 and float16 data types to reduce memory usage, speedup training
+mixed_prec_dtype: "bfloat16"    # choices: ["float16", "bfloat16"]
+
+# Optimizer Configuration
+# ---------------------
+max_lr: 1.0e-3             # max and min lr are for cosine learning rate decay
+min_lr: 1.0e-5
+weight_decay: 1.0e-2
+
+# early stopping parameters
+early_stopping_patience: 5        # epochs to wait until stopping training
+early_stopping_min_delta: 0.0     # Dont modify
+
+# Data and Logging Configuration
+# ----------------
+which_data: "data_full"         # choices: ['data_lite', 'data_full']
+logging_framework: "mlflow"       # choices: ['wandb', 'mlflow', 'local']
+log_interval: 100            # evaluate every 10 weight update steps
+
+# log_dir: "/home/pgmlvol/sazim/pgml/ViViT/logs/"
+data_dir: "/home/pgmlvol/data/data_lite_600_5050/"
+
+# only applies for full dataset (600 timesteps)
+# num_train_files: 10
+# num_val_files: 10
+
+# mlflow specific settings
+mlflow_tracking_uri: "/home/pgmlvol/mlflow2/"     # log and store metrics, params and artifacts
+experiment_name: "vivit-pg-str1-fut6-out3"
+
+# wandb specific settings
+# wandb_api_key: "292f6261d8c8484ee7c2a45bb660e2d655e762a7"

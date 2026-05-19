@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: siriuspod1  # modify name
+spec:
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        preference:
+          matchExpressions:
+          - key: nvidia.com/gpu.product
+            operator: In
+            values:    # ask for a specific GPU type in order of preference (no guarantee)
+            - NVIDIA-GeForce-GTX-1080-Ti
+            - NVIDIA-GeForce-RTX-2080-Ti
+            - NVIDIA-TITAN-RTX
+            - NVIDIA-GeForce-RTX-3090
+            - NVIDIA-A100-80GB-PCIe-MIG-1g.10gb
+            - NVIDIA-A100-SXM4-80GB
+            - NVIDIA-A10
+  containers:
+  - name: gpu-container
+    image: saqib1707/pgml:v1.0.1    # tensorflow==2.18.0 + torch
+    # image: saqib1707/pgml:v1.0.2    # tensorflow==2.16.1, no torch
+    # image: saqib1707/pgml:v1.0.3    # tensorflow==2.16.1, no torch, tf-prob + tf-keras
+    command: ["sleep", "infinity"]    # NEVER EVER USE "sleep infinity" command FOR JOBS. Can be used for pods as they are deleted in ~6 hrs.
+    resources:
+      limits:
+        nvidia.com/gpu: 1   # requests 1 GPU device (max limit = 2 for pods, 8 for jobs per node)
+        # nvidia.com/a100: 1    # for requesting A100 GPUs
+        memory: 32Gi    # total memory limit
+        cpu: 8    # total CPU limit
+        # ephemeral-storage: 512Gi
+      requests:
+        nvidia.com/gpu: 1
+        # nvidia.com/a100: 1    # for requesting A100 GPUs
+        memory: 32Gi    # rule of thumb: use half of memory in limits
+        cpu: 8
+        # ephemeral-storage: 512Gi
+    volumeMounts:
+    - name: pgmlvol
+      mountPath: /home/pgmlvol/
+    - name: pgmlvol2
+      mountPath: /home/pgmlvol2/
+    - name: cache-vol
+      mountPath: /dev/shm
+    - name: ephemeral
+      mountPath: /mnt/dataset
+  volumes:
+    - name: pgmlvol
+      persistentVolumeClaim:
+        claimName: pgmlvol
+    - name: pgmlvol2
+      persistentVolumeClaim:
+        claimName: pgmlvol2
+    - name: cache-vol
+      emptyDir:
+        medium: Memory
+    - name: ephemeral
+      emptyDir: {}
+  restartPolicy: Never

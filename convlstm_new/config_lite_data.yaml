@@ -1,0 +1,111 @@
+# ------------------------------
+# General Settings
+# ------------------------------
+
+seed: 43  # Random seed for reproducibility across runs
+
+# ------------------------------
+# Model Architecture Configuration
+# ------------------------------
+
+image_size: 296           # Input image resolution. DO NOT MODIFY (fixed for AFNO-based models)
+patch_size: 8             # Patch size for tokenization (image is divided into 4x4 patches)
+out_channels: 1           # Number of output channels; 1 corresponds to fuel density. DO NOT MODIFY
+num_pred_frames: 3        # Number of future frames to predict; should be 1 for AFNONet. DO NOT MODIFY
+future: 6                 # Number of frames into the future to predict (e.g., future=1 predicts t+1)
+
+exclude_ignition: false   # If true, excludes ignition map from the input
+exclude_sourcemap: false  # If true, excludes the source map from the input
+teacher_forcing: false    # If true, ground-truth frames are fed as input during training
+
+use_fuel_model: false     # If true, uses a modified AFNO model that explicitly models fuel dynamics
+mixture_type: null        # Type of output distribution for probabilistic modeling; options: [null, "gaussian", "poisson", "concrete"]
+max_fuel_density: null    # Maximum fuel density clamp. If set, model outputs are clamped to [0, max_fuel_dens]
+
+context_len: 6            # Temporal context window size. MUST remain 1 for standard AFNONet. DO NOT MODIFY
+# temporal_patch_size: 1    # (Keep fixed for AFNOnet) Number of frames in each tubelet's time dimension
+# embed_dim: 256             # Dimensionality of token embeddings
+# depth: 4                  # Number of transformer layers in the AFNO model
+# num_blocks: 16            # Number of spatial frequency blocks (higher = more spatial detail)
+
+# ------------------------------
+# Physics-based Loss Configuration
+# ------------------------------
+
+physics_loss: true       # Enable/disable physics-informed loss terms
+physics_test: true       # Enable/disable physics-informed loss terms in test script
+fuel_transport_weight: 0.01     # Weight for penalizing unrealistic fuel transport
+burned_weight:  0.1             # Weight for penalizing error in burned cell regions
+unburned_weight: 0.1          # Weight for penalizing error in unburned cell regions
+fire_metrics_weight: 0.01         # Weight for rate-of-spread (ROS) based fire loss. Set > 0 to enable
+mse_weight: 1.0              # Weight for standard MSE loss on fuel density
+
+ros_method: "horizontal_average"   # ROS computation method: 
+                                   # - "horizontal_instant": instantaneous horizontal ROS
+                                   # - "horizontal_average": average horizontal ROS
+                                   # - "perimeter_displacement": boundary tracking method
+
+# burned_thresh: 0.1         # Optional: fuel density < this is considered "burned" (from Somya's paper)
+# unburned_thresh: 0.65      # Optional: fuel density > this is considered "unburned"
+
+# ------------------------------
+# Training Configuration
+# ------------------------------
+
+max_epochs: 50               # Total number of training epochs
+batch_size: 2               # Number of samples per training batch
+mini_batch_size: 2          # Size of minibatch for gradient accumulation (<= batch_size)
+temporal_stride: 1           # Temporal sampling interval in training data. DO NOT MODIFY
+
+# ------------------------------
+# Hardware and Performance
+# ------------------------------
+
+num_workers: 2               # Number of subprocesses for data loading
+prefetch_factor: 2           # Number of batches to prefetch per worker
+max_gpu_utilization: 0.95    # Cap on GPU memory usage (0 < value ≤ 1)
+
+torch_compile: false         # If true, uses `torch.compile` (TorchDynamo) to optimize training;
+enable_amp: true             # Enable mixed-precision training to improve speed and reduce memory usage
+mixed_prec_dtype: "bfloat16" # Data type for mixed precision; options: ["float16", "bfloat16"]
+
+# ------------------------------
+# Optimizer and Scheduler
+# ------------------------------
+
+max_lr: 1.0e-3               # Peak learning rate (used in cosine annealing schedule)
+min_lr: 1.0e-5               # Minimum learning rate after decay
+weight_decay: 1.0e-2         # L2 regularization strength
+
+# ------------------------------
+# Early Stopping
+# ------------------------------
+
+early_stopping_patience: 10    # Number of epochs to wait before stopping if no improvement
+early_stopping_min_delta: 1.0e-4 # Minimum change in monitored metric to qualify as improvement
+
+# ------------------------------
+# Data and Logging Configuration
+# ------------------------------
+
+which_data: "data_lite"       # Dataset to use: ['data_lite', 'data_full']
+logging_framework: "mlflow"   # Logging backend: ['wandb', 'mlflow', 'local']
+log_interval: 100             # Log every N optimizer steps
+
+# log_dir: "/home/pgmlvol/sazim/pgml/FourCastNet/logs/"  # (Optional) Directory for local logs
+data_dir: "/home/pgmlvol/data/data_lite/"                # Directory where input data is stored
+exp_dir: "/home/pgmlvol/jjaiswal/pgml/FourCastNet/src/results"
+test_sequences: [5, 17, 22, 43, 45]  # List of validation sequences (manually selected for diversity)
+
+# ------------------------------
+# MLFlow Specific Configuration
+# ------------------------------
+
+mlflow_tracking_uri: "/home/pgmlvol/mlflow2/"  # Path to MLflow server or local directory
+experiment_name: "torch-pg-convlstm-str1-fut6-out3"        # Experiment identifier in MLflow
+
+# ------------------------------
+# WandB Specific Configuration
+# ------------------------------
+
+# wandb_api_key: ""  # Uncomment and add api key if using Weights & Biases
