@@ -501,6 +501,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a ViViT model")
     # Point this default to your vivit config path
     parser.add_argument("--config", type=str, default="/home/pgmlvol/tcaglar/pgml/ViViT/configs/config_lite_data.yaml", help="Path to the config file")
-    args = parser.parse_args()
+    # parser.add_argument("--experiment_name", type=str, default=None, help="MLflow experiment name override")
+    args, _ = parser.parse_known_args()
 
     main(args.config)

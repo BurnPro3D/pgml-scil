@@ -610,7 +610,7 @@ def main(args_config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a model")
-    parser.add_argument("--config", type=str, default="/home/pgmlvol/jjaiswal/pgml/FourCastNet/configs/config_lite_data.yaml", help="Path to the config file")
-    args = parser.parse_args()
+    parser.add_argument("--config", type=str, default="/home/pgmlvol/tcaglar/pgml/FourCastNet/configs/config_lite_data.yaml", help="Path to the config file")
+    args, _ = parser.parse_known_args()
 
     main(args.config)
