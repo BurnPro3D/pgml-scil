@@ -225,7 +225,7 @@ logs/
 docs/references/
 
 .DS_Store
-*.npy
+# *.npy
 *.weights.h5
 *.h5
 *.out
