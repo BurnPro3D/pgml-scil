@@ -143,3 +143,13 @@ Experiments are logged via **MLflow** (configured per run via `logging_framework
 # References
 
 > T. Caglar, J. Jaiswal, S. Azim, Y. Gala, M. Nguyen, & I. Altintas, (2026). Physics-guided spatiotemporal neural models for fuel density prediction. *Accepted at IGARSS2026*
+
+# Copyright and License
+
+Copyright © 2021-2025 Mai H. Nguyen
+
+Copyright © 2021-2025 The Regents of the University of California
+
+All rights reserved.
+The code in this repository is released under the GPLv3 license.  See the LICENSE file for details.
+The data in this repository is released under the CC BY-NC-SA 4.0 license.  See the LICENSE_data.txt file for details.
