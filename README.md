@@ -8,10 +8,6 @@ This repository contains code for training and evaluating deep learning emulator
 
 All models are implemented in **PyTorch**. Install dependencies into a conda environment:
 
-```bash
-pip install -r requirements.txt
-```
-
 GPU training is strongly recommended (tested on NVIDIA A40).
 
 ### Installation
