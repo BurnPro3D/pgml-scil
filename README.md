@@ -146,9 +146,9 @@ Experiments are logged via **MLflow** (configured per run via `logging_framework
 
 # Copyright and License
 
-Copyright © 2021-2025 Mai H. Nguyen
+Copyright © 2026 Tolga Caglar
 
-Copyright © 2021-2025 The Regents of the University of California
+Copyright © 2026 The Regents of the University of California
 
 All rights reserved.
 The code in this repository is released under the GPLv3 license.  See the LICENSE file for details.
