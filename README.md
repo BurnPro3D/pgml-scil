@@ -143,5 +143,3 @@ Experiments are logged via **MLflow** (configured per run via `logging_framework
 # References
 
 > T. Caglar, J. Jaiswal, S. Azim, Y. Gala, M. Nguyen, & I. Altintas, (2026). Physics-guided spatiotemporal neural models for fuel density prediction. *Accepted at IGARSS2026*
-
-> Linn, R. R., Goodrick, S. L., Brambilla, S., Brown, M. J., Middleton, R. S., O'Brien, J. J., & Hiers, J. K. (2020). QUIC-fire: A fast-running simulation tool for prescribed fire planning. *Environmental Modelling & Software*, 125, 104616.
