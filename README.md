@@ -146,7 +146,7 @@ Experiments are logged via **MLflow** (configured per run via `logging_framework
 
 # Copyright and License
 
-Copyright © 2026 Tolga Caglar
+Copyright © 2026 [Societal Computing and Innovation Labs (SCIL)](https://scil.ucsd.edu/)
 
 Copyright © 2026 The Regents of the University of California
 
