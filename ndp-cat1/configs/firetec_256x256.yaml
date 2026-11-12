@@ -1,0 +1,100 @@
+# Trains the PGML model (AFNO sequence-to-sequence) on FIRETEC runs.
+#
+#   python ndp-cat1/train.py --config ndp-cat1/configs/firetec_256x256.yaml
+#
+# Any key can be overridden on the command line, e.g. --max-epochs 5.
+# Keys shared with FourCastNet/configs/*.yaml mean the same as there.
+
+# ------------------------------
+# Data
+# ------------------------------
+
+# One Zarr store per FIRETEC run, as written by
+# FIRETEC/TOOLS/Postprocessing-Zarr/firetec_to_zarr.py. All runs must share one
+# grid and output interval. An entry is a path on disk or a Pelican URL:
+#   pelican://<federation>/<namespace>/<path>.zarr
+#   osdf:///<namespace>/<path>.zarr          (Open Science Data Federation)
+stores:
+  - /home/jovyan/work/_User-Persistent-Storage_CephBlock_/FIRETEC/TOOLS/TestRun-256x256-CPU-N16/TestRun-256x256-CPU-N16.zarr
+
+# Options for PelicanFileSystem; used for URLs only, ignored for paths on disk.
+# Pelican reads through the federation's caches by default. Examples:
+#   direct_reads: true                        read from the origin, not a cache
+#   preferred_caches: ["https://<cache>"]     try these caches first
+storage_options: {}
+
+val_fraction: 0.2         # Last share of each run's frames, held out as validation targets
+wind_speed_scale: 10.0    # Wind inputs are the ambient wind (m/s) divided by this
+
+# ------------------------------
+# General Settings
+# ------------------------------
+
+seed: 43
+
+# ------------------------------
+# Model Architecture Configuration
+# ------------------------------
+
+patch_size: 4             # Must divide the grid (256 x 256 cells here)
+out_channels: 1           # Fuel density
+context_len: 6            # Input frames per sample
+future: 6                 # The forecast starts this many frames after the first input frame
+num_pred_frames: 3        # Forecast frames per sample; at most context_len
+temporal_patch_size: 3    # Must divide context_len
+temporal_stride: 1        # Frames between the starts of consecutive samples
+embed_dim: 64
+depth: 4
+num_blocks: 4
+
+# ------------------------------
+# Physics-based Loss Configuration
+# ------------------------------
+
+physics_loss: false
+mse_weight: 1.0
+fuel_transport_weight: 0.01
+burned_weight: 1.0
+unburned_weight: 1.0
+# The fire-metrics term (burned area and rate of spread) is off. It measures
+# each forecast against the forecast's own first frame, and with it at 0.01
+# this run was fitted about five times worse (RMSE 0.028 against 0.006 kg m-3).
+# If you turn it on: the rate of spread is measured along +x only.
+fire_metrics_weight: 0.0
+ros_method: "horizontal_average"
+
+# ------------------------------
+# Training Configuration
+# ------------------------------
+
+max_epochs: 600
+batch_size: 4             # Samples per optimizer step
+
+# Mixed precision is off: this model trains quickly in float32. If you turn it
+# on, "float16" works only while fire_metrics_weight is 0 (that term becomes
+# NaN in float16), and "bfloat16" rounds fuel density to about 0.002 kg m-3,
+# which is as large as the change between two frames.
+enable_amp: false
+mixed_prec_dtype: "float16"    # Used when enable_amp is true; "float16" or "bfloat16"
+
+# ------------------------------
+# Optimizer and Scheduler
+# ------------------------------
+
+max_lr: 0.001            # Starting learning rate of the cosine schedule
+min_lr: 1.0e-5            # Learning rate at the last epoch
+weight_decay: 0.01
+
+# ------------------------------
+# Early Stopping
+# ------------------------------
+
+early_stopping_patience: 100   # Epochs without a better validation loss before stopping
+early_stopping_min_delta: 0.0
+
+# ------------------------------
+# Output
+# ------------------------------
+
+output_dir: "ndp-cat1/runs"            # Each run gets a folder <time>_<experiment_name> in here
+experiment_name: "firetec-256x256"
