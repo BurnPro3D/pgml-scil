@@ -178,7 +178,6 @@ PyJWT==2.3.0
 pyogrio==0.10.0
 pyparsing==3.2.1
 pyproj==3.7.0
-python-apt==2.4.0+ubuntu4
 python-dateutil==2.9.0.post0
 python-json-logger==2.0.7
 pytz==2025.1
