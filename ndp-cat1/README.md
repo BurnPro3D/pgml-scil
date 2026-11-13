@@ -162,9 +162,33 @@ kubectl create configmap pgml-firetec-config -n ndp \
   -o yaml | kubectl apply -f -
 ```
 
-Run a job on the `ndp` namespace with s3 data backend:
+Each pod trains, evaluates, and copies its run folder to
+`s3://ndp-cat1/firetec/pgml/runs/<run folder>` with `upload.py`, also when a
+step failed: the pod's own files are gone once it completes. Writing needs S3
+keys, which the job reads from the Secret `ndp-cat1-s3` (the upload ignores the
+configuration's `anon: true`).
+
+Create it once:
+```
+kubectl create secret generic ndp-cat1-s3 -n ndp \
+  --from-literal=AWS_ACCESS_KEY_ID=<access key> \
+  --from-literal=AWS_SECRET_ACCESS_KEY=<secret key>
+```
+
+Run a job on the `ndp` namespace with s3 data backend + upload:
+```
+kubectl apply -f ndp-cat1/kubernetes/job-s3-upload.yaml
+```
+
+Run a job on the `ndp` namespace with s3 data backend with no upload:
 ```
 kubectl apply -f ndp-cat1/kubernetes/job-s3.yaml
+```
+
+The results are under `firetec/`, which the bucket policy lets anyone read, so
+downloading a run folder needs no keys:
+```
+aws s3 sync s3://ndp-cat1/firetec/pgml/runs/<run folder> ndp-cat1/runs/<run folder> --endpoint-url https://s3-west.nrp-nautilus.io --no-sign-request
 ```
 
 Delete job:
@@ -172,9 +196,14 @@ Delete job:
 kubectl delete -f ndp-cat1/kubernetes/job-s3.yaml
 ```
 
-Delete config file: 
+Delete config: 
 ```
 kubectl delete configmap pgml-firetec-config -n ndp
+```
+
+Delete s3 secret:
+```
+kubectl delete secret ndp-cat1-s3 -nndp
 ```
 
 ## Tests
@@ -189,9 +218,10 @@ $PYTHON -m pytest ndp-cat1
 ndp-cat1/
 |-- setup_env.sh, requirements.txt   the Python environment
 |-- configs/                         training configurations
-|-- train.py, evaluate.py            command-line entry points
+|-- train.py, evaluate.py, upload.py command-line entry points
+|-- kubernetes/                      the training job for Nautilus
 |-- firetec_pgml/
-|   |-- store.py                     opens a store from a path or URL
+|   |-- store.py                     opens a store from a path or URL, uploads run folders
 |   |-- features.py                  FIRETEC fields -> model frames
 |   |-- datasets.py                  frames -> training and validation samples
 |   |-- modeling.py                  model and loss for a run's grid

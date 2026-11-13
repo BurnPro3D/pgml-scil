@@ -1,8 +1,11 @@
-"""Opens FIRETEC Zarr stores from disk, from S3, or through a Pelican federation."""
+"""Opens FIRETEC Zarr stores from disk, from S3, or through a Pelican federation,
+and copies run folders to such places."""
 
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
+import fsspec
 import xarray as xr
 
 
@@ -68,3 +71,30 @@ def open_firetec_store(
         storage_options=options or None,
         zarr_format=None if zarr_format is None else int(zarr_format),
     )
+
+
+def upload_folder(
+    folder: str | Path,
+    url: str,
+    storage_options: Mapping[str, Mapping[str, Any] | None] | None = None,
+) -> str:
+    """Copy ``folder`` to ``<url>/<folder name>`` and return that URL.
+
+    ``url`` is a path or an fsspec URL such as
+    ``s3://ndp-cat1/firetec/pgml/runs``, and its filesystem gets its scheme's
+    entry of ``storage_options``, except ``anon``: nobody writes anonymously,
+    so the same options that read a public bucket without credentials write to
+    it with the credentials in the environment (for S3: AWS_ACCESS_KEY_ID and
+    AWS_SECRET_ACCESS_KEY). Uploading the same folder again overwrites its files.
+    """
+    folder = Path(folder)
+    if not folder.is_dir():
+        raise FileNotFoundError(f"{folder} is not a folder")
+    destination = f"{url.rstrip('/')}/{folder.name}"
+    options = filesystem_options(url, storage_options)
+    options.pop("anon", None)
+    filesystem, path = fsspec.core.url_to_fs(destination, **options)
+    # The trailing slash copies the folder's contents to the destination even
+    # when it exists already, instead of into a new folder inside it.
+    filesystem.put(f"{folder}/", path, recursive=True)
+    return destination

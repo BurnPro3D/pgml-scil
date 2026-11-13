@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: pgml-firetec
-        image: gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:v0.1.0
+        image: gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:v0.2.0
         command: ["bash", "-c", "\
           params=( \
             \"--embed-dim 64 --stores s3://ndp-cat1/firetec/TestRun-256x256-CPU-N16.zarr\" \
