@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pgml-firetec-s3-job
+  namespace: ndp
+  labels:
+    app: pgml-firetec-s3-job
+spec:
+  completions: 3
+  parallelism: 3
+  completionMode: Indexed
+  backoffLimit: 4
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: pgml-firetec-s3-job
+    spec:
+      containers:
+      - name: pgml-firetec
+        image: gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:v0.1.0
+        command: ["bash", "-c", "\
+          params=( \
+            \"--embed-dim 64 --stores s3://ndp-cat1/firetec/TestRun-256x256-CPU-N16.zarr\" \
+            \"--embed-dim 128 --stores s3://ndp-cat1/firetec/TestRun-256x256-CPU-N16.zarr\" \
+            \"--embed-dim 256 --stores s3://ndp-cat1/firetec/TestRun-256x256-CPU-N16.zarr\" ); \
+          idx=$JOB_COMPLETION_INDEX; \
+          echo \"Running experiment: ${params[$idx]}\"; \
+          python ndp-cat1/train.py --config /config/firetec_256x256.yaml ${params[$idx]}"]
+        resources:
+          limits:
+            cpu: 4
+            memory: 10Gi
+            nvidia.com/gpu: 1
+            ephemeral-storage: 5Gi
+          requests:
+            cpu: 4
+            memory: 10Gi
+            nvidia.com/gpu: 1
+            ephemeral-storage: 5Gi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: pgml-firetec-config
+      restartPolicy: Never

@@ -53,9 +53,13 @@ def load_run(
     uri: str,
     storage_options: Mapping[str, Any] | None = None,
     wind_speed_scale: float = 10.0,
+    zarr_format: int | str | None = None,
 ) -> FiretecRun:
-    """Read the store at ``uri`` and build the model frames of its run."""
-    with open_firetec_store(uri, storage_options) as store:
+    """Read the store at ``uri`` and build the model frames of its run.
+
+    ``storage_options`` and ``zarr_format`` are `open_firetec_store`'s.
+    """
+    with open_firetec_store(uri, storage_options, zarr_format) as store:
         return run_from_store(store, source=uri, wind_speed_scale=wind_speed_scale)
 
 

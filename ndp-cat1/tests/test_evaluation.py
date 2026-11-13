@@ -78,6 +78,16 @@ def test_evaluation_writes_metrics_and_an_animation_for_each_training_run(config
         assert animation.n_frames == len(rows)
 
 
+def test_training_and_evaluation_open_the_stores_in_the_configured_zarr_format(
+    config, listing_denied_store
+):
+    config.stores = [listing_denied_store]
+    config.zarr_format = 2
+    run_dir = train(config)
+    evaluate(run_dir)
+    assert (run_dir / "evaluation" / "run" / "forecast_metrics.csv").exists()
+
+
 def test_a_store_the_model_was_not_trained_on_is_labelled_unseen(config, tmp_path):
     run_dir = train(config)
     other_store = tmp_path / "other.zarr"

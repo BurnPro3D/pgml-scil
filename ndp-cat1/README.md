@@ -3,7 +3,7 @@
 Trains the repository's PGML model (`AFNONet_Seq2Seq` with `PhysicsGuidedLoss`)
 on FIRETEC simulations instead of QUIC-Fire ones. The simulations are read from
 the Zarr stores that [firetec_to_zarr.py](https://github.com/national-data-platform/FIRETEC/blob/main/TOOLS/Postprocessing-Zarr/firetec_to_zarr.py)
-writes, either from disk or through a Pelican federation such as the OSDF.
+writes, from disk, from S3, or through a Pelican federation such as the OSDF.
 
 ## Setup
 
@@ -79,24 +79,103 @@ The last `val_fraction` of each run's frames are held out: they are validation
 targets and never training targets. With a single run this only checks the late
 part of the fire. Held-out runs are the meaningful test, once there are several.
 
-## Reading from Pelican
+## Reading from S3 or Pelican
 
-A store is named by a path or by a URL, so switching is a change to `stores` in
-the configuration:
+A store is named by a path or by a URL, so switching is a change to `stores` in the configuration:
 
 ```yaml
 stores:
-  - osdf:///<namespace>/<path>/TestRun-256x256-CPU-N16.zarr
-  # or, for another federation:
+  - s3://ndp-cat1/firetec/TestRun-256x256-CPU-N16.zarr
+  # or, through the OSDF or another Pelican federation:
+  # - osdf:///<namespace>/<path>/TestRun-256x256-CPU-N16.zarr
   # - pelican://<federation host>/<namespace>/<path>/TestRun-256x256-CPU-N16.zarr
-storage_options: {}
+storage_options:
+  s3:
+    endpoint_url: https://s3-west.nrp-nautilus.io
+    anon: true
+  osdf: {}
+zarr_format: null
 ```
 
-Pelican serves objects from the federation's caches by default.
-`storage_options` are passed to `PelicanFileSystem`, for example
-`direct_reads: true` to read from the origin, or `preferred_caches: [...]`.
-They are ignored for paths on disk. A whole run is read once, when training
-starts.
+`storage_options` maps a URL scheme to the options of its filesystem. They are
+ignored for paths on disk.
+
+- `s3` options go to s3fs's `S3FileSystem`. `endpoint_url` names an
+  S3-compatible service such as NRP Nautilus, and `anon: true` reads a public
+  bucket without credentials. For a private bucket, drop `anon` and put the
+  keys in the environment (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`), not in
+  the configuration, which is copied into every run folder.
+- `osdf` and `pelican` options go to `PelicanFileSystem`. Pelican serves objects
+  from the federation's caches by default: `direct_reads: true` reads from the
+  origin, and `preferred_caches: [...]` tries those caches first.
+
+`zarr_format` is the stores' Zarr format, 2 or 3 (firetec_to_zarr.py writes 2
+unless it is asked for 3). With `null`, Zarr detects it: it asks for format 3
+metadata and, when the store answers "not found", reads format 2.
+
+A whole run is read once, when training starts.
+
+## Docker
+Build an image to test locally:
+```
+docker build -f ndp-cat1/Dockerfile -t pgml-ndp .
+```
+`train.py` imports common_utils and FourCastNet from the repository root, so
+build from the root.
+
+Run with local backend store (change the data mount):
+```
+docker run --rm \
+  -v /path/to/stores:/data:ro \
+  -v "$PWD/ndp-cat1/runs:/workspace/pgml/ndp-cat1/runs" \
+  pgml-ndp --config ndp-cat1/configs/firetec_256x256.yaml \
+  --stores /data/TestRun-256x256-CPU-N16.zarr --max-epochs 1
+```
+
+Run with s3 backend store:
+```
+docker run --rm \
+  -v "$PWD/ndp-cat1/runs:/workspace/pgml/ndp-cat1/runs" \
+  pgml-ndp --config ndp-cat1/configs/firetec_256x256.yaml \
+  --stores s3://ndp-cat1/firetec/TestRun-256x256-CPU-N16.zarr --max-epochs 1
+```
+
+Note that every cli argument overwrites the config file.
+
+Build and push to container registry on https://gitlab.nrp-nautilus.io/ndp/ndp-cat1:
+```
+docker buildx build --platform linux/amd64 -f ndp-cat1/Dockerfile -t gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:v0.1.0 .
+
+#or without buildx
+docker build -f ndp-cat1/Dockerfile -t gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:v0.1.0 .
+
+docker push gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:v0.1.0
+```
+
+## Kubernetes
+The job reads its configuration from the ConfigMap `pgml-firetec-config`, made
+from `configs/firetec_256x256.yaml`. Create it before the first run, and again
+after each change to the file (a running job keeps the version it started with):
+```
+kubectl create configmap pgml-firetec-config -n ndp \
+  --from-file=ndp-cat1/configs/firetec_256x256.yaml \
+  -o yaml | kubectl apply -f -
+```
+
+Run a job on the `ndp` namespace with s3 data backend:
+```
+kubectl apply -f ndp-cat1/kubernetes/job-s3.yaml
+```
+
+Delete job:
+```
+kubectl delete -f ndp-cat1/kubernetes/job-s3.yaml
+```
+
+Delete config file: 
+```
+kubectl delete configmap pgml-firetec-config -n ndp
+```
 
 ## Tests
 

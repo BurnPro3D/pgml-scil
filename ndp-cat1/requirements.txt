@@ -15,9 +15,10 @@ transformers==4.48.2
 tqdm==4.67.1
 PyYAML==6.0.2
 
-# Reading FIRETEC Zarr stores, from disk or through a Pelican federation.
+# Reading FIRETEC Zarr stores, from disk, from S3, or through a Pelican federation.
 xarray>=2025.1
 zarr>=3.0.8
+s3fs>=2025.1
 pelicanfs>=1.5
 
 # Tests

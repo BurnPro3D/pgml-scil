@@ -1,10 +1,14 @@
 """Shared test fixtures. Its place in ndp-cat1/ also lets pytest import firetec_pgml."""
 
+from collections.abc import Iterator
+
+import fsspec
 import numpy as np
 import pytest
 import torch
 import xarray as xr
 import yaml
+from fsspec.implementations.memory import MemoryFileSystem
 
 from firetec_pgml.features import FiretecRun, RunGeometry
 
@@ -74,6 +78,37 @@ def firetec_store(tmp_path) -> str:
     return str(path)
 
 
+class ListingDeniedFileSystem(MemoryFileSystem):
+    """An in-memory bucket that answers like an S3 bucket to a client that may
+    not list it: "access denied", not "not found", for a missing object."""
+
+    protocol = "listingdenied"
+
+    @classmethod
+    def _strip_protocol(cls, path):
+        return super()._strip_protocol(path.replace("listingdenied://", "memory://", 1))
+
+    def cat_file(self, path, start=None, end=None, **kwargs):
+        try:
+            return super().cat_file(path, start=start, end=end, **kwargs)
+        except FileNotFoundError as error:
+            raise PermissionError(f"Forbidden: {path}") from error
+
+
+fsspec.register_implementation("listingdenied", ListingDeniedFileSystem, clobber=True)
+
+
+@pytest.fixture
+def listing_denied_store(tmp_path) -> Iterator[str]:
+    """URL of the small FIRETEC-like store, in Zarr format 2, in a bucket that
+    answers "access denied" for missing objects. It opens only when the format
+    is named: detection would ask for format 3 metadata."""
+    path = f"{tmp_path.name}/run.zarr"
+    make_firetec_dataset().to_zarr(f"memory://{path}", zarr_format=2)
+    yield f"listingdenied://{path}"
+    MemoryFileSystem().rm(f"memory://{path}", recursive=True)
+
+
 def make_numbered_run(num_frames: int) -> FiretecRun:
     """A run whose every frame holds its own frame number, so samples show where they came from."""
     frame_numbers = torch.arange(num_frames, dtype=torch.float32).reshape(num_frames, 1, 1, 1)
@@ -88,7 +123,11 @@ def make_numbered_run(num_frames: int) -> FiretecRun:
 
 @pytest.fixture
 def config(firetec_store, tmp_path) -> Config:
-    """A configuration that trains a very small model on the test store."""
+    """A configuration that trains a very small model on the test store.
+
+    It has no zarr_format, like the configurations of runs from before that key
+    existed, so the store's format is detected.
+    """
     settings = {
         "stores": [firetec_store],
         "storage_options": {},

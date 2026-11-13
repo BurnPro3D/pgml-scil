@@ -9,7 +9,8 @@ Forecasts every frame of each run the model was trained on and writes, under
     forecast_metrics.csv  each frame's error, next to the error of predicting no change
 
 ``--store`` evaluates other stores instead, for example a run the model has not
-seen. It accepts paths and Pelican URLs like the configuration's ``stores``.
+seen. It accepts paths and S3 or Pelican URLs like the configuration's
+``stores``, and reads them with the run's ``storage_options`` and ``zarr_format``.
 """
 
 import argparse
@@ -43,7 +44,9 @@ def evaluate(run_dir: Path, stores: list[str] | None = None) -> None:
     checkpoint = torch.load(run_dir / CHECKPOINT_NAME, map_location=device, weights_only=True)
 
     for uri in stores or config.stores:
-        run = load_run(uri, config.storage_options, config.wind_speed_scale)
+        run = load_run(
+            uri, config.storage_options, config.wind_speed_scale, config.get("zarr_format")
+        )
         model = build_model(config, run.geometry).to(device)
         model.load_state_dict(checkpoint["state_dict"])
         forecast = forecast_run(model, run, windows, device, config.batch_size)

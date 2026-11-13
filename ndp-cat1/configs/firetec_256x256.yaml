@@ -11,17 +11,30 @@
 
 # One Zarr store per FIRETEC run, as written by
 # FIRETEC/TOOLS/Postprocessing-Zarr/firetec_to_zarr.py. All runs must share one
-# grid and output interval. An entry is a path on disk or a Pelican URL:
+# grid and output interval. An entry is a path on disk or a URL:
+#   s3://<bucket>/<path>.zarr                       (S3 or an S3-compatible service)
 #   pelican://<federation>/<namespace>/<path>.zarr
-#   osdf:///<namespace>/<path>.zarr          (Open Science Data Federation)
+#   osdf:///<namespace>/<path>.zarr                 (Open Science Data Federation)
 stores:
   - /home/jovyan/work/_User-Persistent-Storage_CephBlock_/FIRETEC/TOOLS/TestRun-256x256-CPU-N16/TestRun-256x256-CPU-N16.zarr
+  # The same run in a public bucket on NRP Nautilus (uses storage_options.s3):
+  # - s3://ndp-cat1/firetec/TestRun-256x256-CPU-N16.zarr
 
-# Options for PelicanFileSystem; used for URLs only, ignored for paths on disk.
-# Pelican reads through the federation's caches by default. Examples:
-#   direct_reads: true                        read from the origin, not a cache
-#   preferred_caches: ["https://<cache>"]     try these caches first
-storage_options: {}
+# Options for each URL scheme's filesystem, used for the stores with that scheme
+# and ignored for paths on disk.
+#   s3: S3FileSystem (s3fs). endpoint_url names an S3-compatible service, and
+#       anon: true reads a public bucket without credentials. For a private
+#       bucket, drop anon and set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in
+#       the environment rather than here: this file is copied into every run folder.
+#   osdf, pelican: PelicanFileSystem, which reads through the federation's caches by default.
+#       direct_reads: true                        read from the origin, not a cache
+#       preferred_caches: ["https://<cache>"]     try these caches first
+storage_options:
+  s3:
+    endpoint_url: https://s3-west.nrp-nautilus.io
+    anon: true
+
+zarr_format: null
 
 val_fraction: 0.2         # Last share of each run's frames, held out as validation targets
 wind_speed_scale: 10.0    # Wind inputs are the ambient wind (m/s) divided by this

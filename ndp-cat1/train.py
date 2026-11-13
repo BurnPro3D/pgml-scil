@@ -40,7 +40,12 @@ def train(config: Config) -> Path:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info("Training on %s; results in %s", device, run_dir)
 
-    runs = [load_run(uri, config.storage_options, config.wind_speed_scale) for uri in config.stores]
+    runs = [
+        load_run(
+            uri, config.storage_options, config.wind_speed_scale, config.get("zarr_format")
+        )
+        for uri in config.stores
+    ]
     geometry = common_geometry(runs)
     train_set, val_set = build_window_datasets(
         runs, WindowSpec.from_config(config), config.val_fraction

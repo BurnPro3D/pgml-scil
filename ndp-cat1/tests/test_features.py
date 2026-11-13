@@ -79,6 +79,11 @@ def test_load_run_reads_a_store_from_disk(firetec_store, run):
     assert loaded.geometry == run.geometry
 
 
+def test_load_run_opens_the_store_in_the_zarr_format_it_is_given(listing_denied_store, run):
+    loaded = load_run(listing_denied_store, wind_speed_scale=WIND_SPEED_SCALE, zarr_format=2)
+    assert torch.equal(loaded.inputs, run.inputs)
+
+
 def test_store_without_ignition_data_is_rejected(firetec_dataset):
     store = firetec_dataset.drop_vars(["ignition_i", "ignition_j", "ignition_time"])
     with pytest.raises(ValueError, match="ignition"):
