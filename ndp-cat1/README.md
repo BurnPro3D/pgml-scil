@@ -188,7 +188,7 @@ kubectl apply -f ndp-cat1/kubernetes/job-s3.yaml
 The results are under `firetec/`, which the bucket policy lets anyone read, so
 downloading a run folder needs no keys:
 ```
-aws s3 sync s3://ndp-cat1/firetec/pgml/runs/<run folder> ndp-cat1/runs/<run folder> --endpoint-url https://s3-west.nrp-nautilus.io --no-sign-request
+aws s3 sync s3://ndp-cat1/pgml/runs/<run folder> ndp-cat1/runs/<run folder> --endpoint-url https://s3-west.nrp-nautilus.io --no-sign-request
 ```
 
 Delete job:
