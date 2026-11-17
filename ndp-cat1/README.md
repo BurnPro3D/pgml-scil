@@ -28,8 +28,9 @@ Run from the repository root:
 $PYTHON ndp-cat1/train.py --config ndp-cat1/configs/firetec_256x256.yaml
 ```
 
-Any key of the configuration can be overridden on the command line, for example
-`--max-epochs 50 --experiment-name trial`. Each run writes a folder
+Any key of the configuration except `storage_options` can be overridden on the
+command line, for example `--max-epochs 50 --experiment-name trial`; `train.py`
+stops on an option that is not a key. Each run writes a folder
 `ndp-cat1/runs/<time>_<experiment_name>/`:
 
 | File | Contents |
@@ -50,12 +51,16 @@ writes, under `<run folder>/evaluation/<store name>/`:
 
 | File | Contents |
 |---|---|
-| `forecast.gif` | FIRETEC's fuel density, the forecast, and their difference, frame by frame |
+| `forecast.gif` | FIRETEC's fuel density, the forecast, and their difference, frame by frame. The difference is dark where they agree; its colour scale ends at the 99.9th percentile of the differences, so the few larger ones show in the end colours |
 | `forecast_metrics.csv` | Per frame: the forecast's RMSE and the RMSE of predicting no change |
+| `store.txt` | The store the results are for |
 
-Each frame is marked `training` or `validation`. "Predicting no change" repeats
-the last input frame; a useful model has to beat it. Pass `--store <path or URL>`
-to evaluate a run the model has not seen.
+Each frame is marked `training` (in the part of the run training used),
+`validation` (held out), or `unseen run` (a store that is not among the run's
+`stores`). "Predicting no change" repeats the last input frame; a useful model
+has to beat it. Pass `--store <path or URL>` to evaluate a run the model has
+not seen. A store is refused when another store's results already have its
+name; folders written before `store.txt` existed are not checked.
 
 ## How a FIRETEC run becomes model input
 
@@ -69,7 +74,12 @@ One frame per FIRETEC output time, with four channels (`firetec_pgml/features.py
 
 The target is the fuel density of later frames. A sample holds `context_len`
 input frames and the `num_pred_frames` frames that start `future` frames after
-the first input frame.
+the first input frame. With `predict_change: true`, the model predicts the
+change from the last input frame instead of the fuel density itself. On the
+256 x 256 run that cut the error by 27 to 42% at `embed_dim` 64, 128 and 256,
+but only at 256 did it match predicting no change.
+
+Stores converted with `--density-weighted` are refused: their `u` and `v` hold the air density times the wind.
 
 The ignition file numbers cells from zero in x and y, so `ignition_i` and
 `ignition_j` are used directly as array indices. The store labels them
@@ -140,33 +150,38 @@ docker run --rm \
   --stores s3://ndp-cat1/firetec/TestRun-256x256-CPU-N16.zarr --max-epochs 1
 ```
 
-Note that every cli argument overwrites the config file.
+Arguments after the image name override the configuration's values, as on the command line.
 
-Build and push to container registry on https://gitlab.nrp-nautilus.io/ndp/ndp-cat1:
+Build and push to container registry on https://gitlab.nrp-nautilus.io/ndp/ndp-cat1,
+with a new tag for every code change (the Jobs run `v0.2.0` now):
 ```
-docker buildx build --platform linux/amd64 -f ndp-cat1/Dockerfile -t gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:v0.1.0 .
+TAG=v0.3.0
+docker buildx build --platform linux/amd64 -f ndp-cat1/Dockerfile -t gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:$TAG .
 
 #or without buildx
-docker build -f ndp-cat1/Dockerfile -t gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:v0.1.0 .
+docker build -f ndp-cat1/Dockerfile -t gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:$TAG .
 
-docker push gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:v0.1.0
+docker push gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:$TAG
 ```
+Then set the same tag in the `image:` of the Jobs in `kubernetes/`. Pushing an
+existing tag again does not reach every node: a node that has pulled a tag
+keeps using its copy.
 
 ## Kubernetes
 The job reads its configuration from the ConfigMap `pgml-firetec-config`, made
-from `configs/firetec_256x256.yaml`. Create it before the first run, and again
-after each change to the file (a running job keeps the version it started with):
+from `configs/firetec_256x256.yaml`. Create it before the first run, and update
+it after each change to the file. `train.py` reads it when a pod starts, so pods
+that start later, retries included, get the current version.
 ```
 kubectl create configmap pgml-firetec-config -n ndp \
   --from-file=ndp-cat1/configs/firetec_256x256.yaml \
-  -o yaml | kubectl apply -f -
+  --dry-run=client -o yaml | kubectl apply -f -
 ```
 
 Each pod trains, evaluates, and copies its run folder to
-`s3://ndp-cat1/firetec/pgml/runs/<run folder>` with `upload.py`, also when a
+`s3://ndp-cat1/pgml/runs/<run folder>` with `upload.py`, also when a
 step failed: the pod's own files are gone once it completes. Writing needs S3
-keys, which the job reads from the Secret `ndp-cat1-s3` (the upload ignores the
-configuration's `anon: true`).
+keys, which the job reads from the Secret `ndp-cat1-s3`.
 
 Create it once:
 ```
@@ -185,10 +200,18 @@ Run a job on the `ndp` namespace with s3 data backend with no upload:
 kubectl apply -f ndp-cat1/kubernetes/job-s3.yaml
 ```
 
-The results are under `firetec/`, which the bucket policy lets anyone read, so
-downloading a run folder needs no keys:
+Both manifests create the Job `pgml-firetec-s3-job`, so delete the previous one
+before starting either: `kubectl delete job pgml-firetec-s3-job -n ndp --ignore-not-found`.
+
+The results are under `pgml/runs/`, which anyone can read, so downloading a run
+folder needs no keys:
 ```
 aws s3 sync s3://ndp-cat1/pgml/runs/<run folder> ndp-cat1/runs/<run folder> --endpoint-url https://s3-west.nrp-nautilus.io --no-sign-request
+```
+
+You can see all the runs that have been uploaded to the public s3 bucket:
+```
+aws s3 ls s3://ndp-cat1/pgml/runs/ --endpoint-url https://s3-west.nrp-nautilus.io --no-sign-request
 ```
 
 Delete job:

@@ -147,6 +147,14 @@ def _check_store(store: xr.Dataset, source: str) -> None:
     missing = [name for name in REQUIRED_VARIABLES if name not in store]
     if missing:
         raise ValueError(f"{source} lacks {missing}; is it a FIRETEC store with ignition data?")
+    for name in ("u", "v"):
+        units = store[name].attrs.get("units")
+        if units != "m s-1":
+            # firetec_to_zarr.py --density-weighted keeps FIRETEC's rho * u and rho * v.
+            raise ValueError(
+                f"{source} gives {name} in {units!r}, not 'm s-1'; "
+                "convert the run without --density-weighted"
+            )
     if store.sizes["time"] < 2:
         raise ValueError(f"{source} holds fewer than two output frames")
     intervals = np.diff(store["time"].values)

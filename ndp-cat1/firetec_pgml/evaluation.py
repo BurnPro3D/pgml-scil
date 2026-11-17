@@ -54,6 +54,11 @@ def forecast_run(
         num_pred_frames=1,
         future=windows.future,
     )
+    if len(samples) == 0:
+        raise ValueError(
+            f"{run.source} has {run.num_frames} frames; a forecast needs at least "
+            f"future + 1 = {windows.future + 1}"
+        )
     fuel_channel = INPUT_CHANNELS.index("fuel_density")
     predicted, observed, persisted = [], [], []
     model.eval()

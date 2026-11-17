@@ -1,6 +1,6 @@
 """Copy a run folder to S3 or another fsspec URL.
 
-    python ndp-cat1/upload.py --run-dir ndp-cat1/runs/<run folder> --to s3://ndp-cat1/firetec/pgml/runs
+    python ndp-cat1/upload.py --run-dir ndp-cat1/runs/<run folder> --to s3://ndp-cat1/pgml/runs
 
 The folder lands at ``<to>/<run folder>``, with everything in it: the files
 train.py wrote, and evaluate.py's ``evaluation/`` once it has run. The run's

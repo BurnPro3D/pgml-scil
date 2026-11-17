@@ -62,7 +62,7 @@ class Trainer:
         Returns one row of metrics per epoch, also written to ``run_dir``.
         """
         history = []
-        best_val_loss = math.inf
+        best_val_loss, best_epoch = math.inf, 0
         for epoch in range(1, max_epochs + 1):
             learning_rate = self.optimizer.param_groups[0]["lr"]
             train_metrics = self._run_epoch(train_loader, training=True)
@@ -81,11 +81,14 @@ class Trainer:
             )
 
             if val_metrics["loss"] < best_val_loss:
-                best_val_loss = val_metrics["loss"]
+                best_val_loss, best_epoch = val_metrics["loss"], epoch
                 self._save_checkpoint(run_dir / CHECKPOINT_NAME, epoch, best_val_loss)
             if early_stopping(val_metrics["loss"]):
-                logger.info("Stopping early: no better validation loss since epoch %d",
-                            epoch - early_stopping.patience)
+                logger.info(
+                    "Stopping early after epoch %d: the validation loss stopped improving. "
+                    "The best model is from epoch %d (val loss %.6f)",
+                    epoch, best_epoch, best_val_loss,
+                )
                 break
         return history
 

@@ -15,6 +15,17 @@ def url_scheme(uri: str) -> str | None:
     return scheme if separator else None
 
 
+def canonical_uri(uri: str) -> str:
+    """One spelling of a store's location, to tell whether two names mean one store.
+
+    A path on disk becomes absolute, with symbolic links resolved; a URL loses
+    trailing slashes.
+    """
+    if url_scheme(uri) is None:
+        return str(Path(uri).resolve())
+    return uri.rstrip("/")
+
+
 def filesystem_options(
     uri: str, storage_options: Mapping[str, Mapping[str, Any] | None] | None
 ) -> dict[str, Any]:
@@ -80,14 +91,15 @@ def upload_folder(
 ) -> str:
     """Copy ``folder`` to ``<url>/<folder name>`` and return that URL.
 
-    ``url`` is a path or an fsspec URL such as
-    ``s3://ndp-cat1/firetec/pgml/runs``, and its filesystem gets its scheme's
-    entry of ``storage_options``, except ``anon``: nobody writes anonymously,
-    so the same options that read a public bucket without credentials write to
-    it with the credentials in the environment (for S3: AWS_ACCESS_KEY_ID and
-    AWS_SECRET_ACCESS_KEY). Uploading the same folder again overwrites its files.
+    ``url`` is a path or an fsspec URL such as ``s3://ndp-cat1/pgml/runs``, and
+    its filesystem gets its scheme's entry of ``storage_options``, except
+    ``anon``: nobody writes anonymously, so the same options that read a public
+    bucket without credentials write to it with the credentials in the
+    environment (for S3: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY).
+    Uploading the same folder again overwrites its files.
     """
-    folder = Path(folder)
+    # Resolved, so that "." and ".." name the folder they stand for.
+    folder = Path(folder).resolve()
     if not folder.is_dir():
         raise FileNotFoundError(f"{folder} is not a folder")
     destination = f"{url.rstrip('/')}/{folder.name}"

@@ -4,7 +4,7 @@ import pytest
 import xarray as xr
 
 from conftest import INITIAL_FUEL, NUM_FRAMES
-from firetec_pgml.store import filesystem_options, open_firetec_store, url_scheme
+from firetec_pgml.store import canonical_uri, filesystem_options, open_firetec_store, url_scheme
 
 S3_OPTIONS = {"endpoint_url": "https://s3.example.org", "anon": True}
 STORAGE_OPTIONS = {"s3": S3_OPTIONS, "osdf": {"direct_reads": True}}
@@ -89,3 +89,16 @@ def test_options_not_keyed_by_scheme_are_refused():
 )
 def test_urls_are_told_apart_from_paths(uri, scheme):
     assert url_scheme(uri) == scheme
+
+
+def test_spellings_of_one_path_have_one_canonical_form(tmp_path, monkeypatch):
+    store = tmp_path / "runs" / "run.zarr"
+    store.mkdir(parents=True)
+    (tmp_path / "alias.zarr").symlink_to(store, target_is_directory=True)
+    monkeypatch.chdir(tmp_path)
+    spellings = ["runs/run.zarr", "./runs//run.zarr/", str(store), str(tmp_path / "alias.zarr")]
+    assert {canonical_uri(spelling) for spelling in spellings} == {str(store.resolve())}
+
+
+def test_a_url_loses_only_its_trailing_slashes():
+    assert canonical_uri("s3://bucket/runs/run.zarr//") == "s3://bucket/runs/run.zarr"

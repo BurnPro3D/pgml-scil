@@ -1,4 +1,5 @@
 import csv
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -6,8 +7,8 @@ import torch
 from PIL import Image
 from torch import nn
 
-from conftest import make_numbered_run
-from evaluate import evaluate, store_name
+from conftest import make_firetec_dataset, make_numbered_run
+from evaluate import STORE_RECORD_NAME, evaluate, store_name
 from firetec_pgml.datasets import WindowSpec
 from firetec_pgml.evaluation import forecast_run, root_mean_square_error
 from firetec_pgml.features import INPUT_CHANNELS, FiretecRun
@@ -49,6 +50,11 @@ def test_persistence_forecast_is_the_last_input_frame(numbered_run):
     assert forecast.persisted[:, 0, 0].tolist() == [5, 6, 7, 8]
 
 
+def test_a_run_too_short_to_forecast_is_refused_with_its_length():
+    with pytest.raises(ValueError, match="has 6 frames"):
+        forecast_run(AddsAnOffset(), make_numbered_run(6), WINDOWS, torch.device("cpu"), batch_size=3)
+
+
 def test_error_is_computed_per_frame():
     observed = np.zeros((2, 2, 2))
     forecast = np.stack([np.full((2, 2), 3.0), np.array([[0.0, 0.0], [0.0, 2.0]])])
@@ -61,6 +67,13 @@ def test_error_is_computed_per_frame():
 )
 def test_store_name_is_the_last_part_of_the_uri(uri):
     assert store_name(uri) == "TestRun"
+
+
+def test_the_current_folder_is_named_after_itself(tmp_path, monkeypatch):
+    store = tmp_path / "TestRun.zarr"
+    (store / "evaluation").mkdir(parents=True)
+    monkeypatch.chdir(store / "evaluation")
+    assert store_name("..") == store_name("../") == "TestRun"
 
 
 def test_evaluation_writes_metrics_and_an_animation_for_each_training_run(config):
@@ -88,11 +101,54 @@ def test_training_and_evaluation_open_the_stores_in_the_configured_zarr_format(
     assert (run_dir / "evaluation" / "run" / "forecast_metrics.csv").exists()
 
 
+def write_store(path) -> str:
+    make_firetec_dataset().to_zarr(path, zarr_format=2)
+    return str(path)
+
+
+def splits(output_dir) -> set[str]:
+    with open(output_dir / "forecast_metrics.csv", newline="") as file:
+        return {row["split"] for row in csv.DictReader(file)}
+
+
 def test_a_store_the_model_was_not_trained_on_is_labelled_unseen(config, tmp_path):
     run_dir = train(config)
-    other_store = tmp_path / "other.zarr"
-    other_store.symlink_to(config.stores[0], target_is_directory=True)
-    evaluate(run_dir, stores=[str(other_store)])
+    evaluate(run_dir, stores=[write_store(tmp_path / "other.zarr")])
+    assert splits(run_dir / "evaluation" / "other") == {"unseen run"}
 
-    with open(run_dir / "evaluation" / "other" / "forecast_metrics.csv", newline="") as file:
-        assert {row["split"] for row in csv.DictReader(file)} == {"unseen run"}
+
+@pytest.mark.parametrize("spelling", ["trailing slash", "symbolic link"])
+def test_a_training_store_spelled_differently_keeps_its_labels(config, tmp_path, spelling):
+    run_dir = train(config)
+    store = config.stores[0]
+    if spelling == "trailing slash":
+        respelled = store + "/"
+    else:
+        respelled = str(tmp_path / "alias.zarr")
+        Path(respelled).symlink_to(store, target_is_directory=True)
+    evaluate(run_dir, stores=[respelled])
+    assert splits(run_dir / "evaluation" / store_name(respelled)) == {"training", "validation"}
+
+
+def test_the_results_folder_names_its_store(config):
+    run_dir = train(config)
+    evaluate(run_dir)
+    record = run_dir / "evaluation" / "run" / STORE_RECORD_NAME
+    assert record.read_text().strip() == str(Path(config.stores[0]).resolve())
+
+
+def test_a_store_named_like_another_stores_results_is_refused(config, tmp_path):
+    run_dir = train(config)
+    evaluate(run_dir)
+    namesake = write_store(tmp_path / "elsewhere" / "run.zarr")
+    with pytest.raises(ValueError, match="same name"):
+        evaluate(run_dir, stores=[namesake])
+    assert splits(run_dir / "evaluation" / "run") == {"training", "validation"}
+
+
+def test_two_stores_with_one_name_are_refused_before_anything_is_written(config, tmp_path):
+    run_dir = train(config)
+    namesake = write_store(tmp_path / "elsewhere" / "run.zarr")
+    with pytest.raises(ValueError, match="same name"):
+        evaluate(run_dir, stores=[config.stores[0], namesake])
+    assert not (run_dir / "evaluation").exists()

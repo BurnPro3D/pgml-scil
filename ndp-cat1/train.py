@@ -2,8 +2,9 @@
 
     python ndp-cat1/train.py --config ndp-cat1/configs/firetec_256x256.yaml
 
-Any key of the configuration can be overridden on the command line, for
-example ``--max-epochs 5``. Each run writes its own folder under the
+Any key of the configuration except ``storage_options`` can be overridden on
+the command line, for example ``--max-epochs 5``; an option that is not a key
+stops the run before it starts. Each run writes its own folder under the
 configuration's ``output_dir``: the resolved config.yaml, training.log,
 history.csv and best_model.pth.
 """
@@ -14,6 +15,7 @@ import time
 from pathlib import Path
 
 import torch
+import yaml
 from torch.utils.data import DataLoader
 
 from firetec_pgml.datasets import WindowSpec, build_window_datasets
@@ -86,9 +88,35 @@ def train(config: Config) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--config", required=True, help="path of the YAML configuration")
-    # Config reads the remaining arguments itself, as overrides of its keys.
-    args, _ = parser.parse_known_args()
-    train(Config(args.config))
+    args, overrides = parser.parse_known_args()
+    unknown = unknown_overrides(args.config, overrides)
+    if unknown:
+        parser.error(
+            f"unknown arguments {' '.join(unknown)}: an option is --<key> for a key of "
+            f"{args.config}, spelled in full with - for _; storage_options can be set "
+            "only in the file"
+        )
+    # Config reads the overrides itself. Its environment overrides (TRAIN_<KEY>)
+    # stay off: common_utils/config.py cannot convert their values.
+    train(Config(args.config, override_from_env=False))
+
+
+def unknown_overrides(config_path: str, arguments: list[str]) -> list[str]:
+    """The arguments that are not ``--<key> [value ...]`` for a key of the file.
+
+    Config takes ``--<key>`` for each key, with - for _, except keys whose value
+    is a mapping, such as storage_options, and silently ignores anything else.
+    Options must be spelled in full.
+    """
+    with open(config_path) as file:
+        settings = yaml.safe_load(file)
+    parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+    for key, value in settings.items():
+        if not isinstance(value, dict):
+            nargs = "+" if isinstance(value, list) else None
+            parser.add_argument(f"--{key.replace('_', '-')}", nargs=nargs)
+    _, unknown = parser.parse_known_args(arguments)
+    return unknown
 
 
 if __name__ == "__main__":

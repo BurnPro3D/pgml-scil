@@ -75,3 +75,10 @@ def test_a_trained_run_is_uploaded_with_its_files(config, bucket):
     assert {"config.yaml", "training.log", "history.csv", "best_model.pth"} <= set(
         files_under(destination)
     )
+
+
+def test_the_current_folder_is_copied_under_its_own_name(run_folder, bucket, monkeypatch):
+    monkeypatch.chdir(run_folder)
+    destination = upload_folder(".", bucket)
+    assert destination == f"{bucket}/{run_folder.name}"
+    assert files_under(destination) == ["config.yaml", "evaluation/run/forecast_metrics.csv"]

@@ -47,8 +47,8 @@ def make_firetec_dataset() -> xr.Dataset:
     return xr.Dataset(
         data_vars={
             "rhoFuel": (("time", "fuel_type", "z_fuel", "y", "x"), fuel),
-            "u": (("time", "z", "y", "x"), wind_field(WIND[0])),
-            "v": (("time", "z", "y", "x"), wind_field(WIND[1])),
+            "u": (("time", "z", "y", "x"), wind_field(WIND[0]), {"units": "m s-1"}),
+            "v": (("time", "z", "y", "x"), wind_field(WIND[1]), {"units": "m s-1"}),
             "ignition_i": ("ignition_point", ignition_i.astype(np.int32)),
             "ignition_j": ("ignition_point", ignition_j.astype(np.int32)),
             "ignition_time": ("ignition_point", ignition_time.astype(np.float64)),

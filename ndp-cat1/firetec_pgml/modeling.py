@@ -1,15 +1,38 @@
 """Builds the PGML model and its loss for FIRETEC data."""
 
+import torch
+from torch import nn
+
 from common_utils.config import Config
 from common_utils.loss import PhysicsGuidedLoss
 from FourCastNet.networks.afnonet_wf import AFNONet_Seq2Seq
 from firetec_pgml.features import INPUT_CHANNELS, RunGeometry
 
+FUEL_CHANNEL = INPUT_CHANNELS.index("fuel_density")
 
-def build_model(config: Config, geometry: RunGeometry) -> AFNONet_Seq2Seq:
-    """The repository's AFNO sequence-to-sequence model, sized for the runs' grid."""
+
+class ChangeFromLastFrame(nn.Module):
+    """Makes a model predict the change in fuel density: its output is added
+    to the fuel density of the last input frame."""
+
+    def __init__(self, model: nn.Module):
+        super().__init__()
+        self.model = model
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        last_fuel = inputs[:, -1:, FUEL_CHANNEL : FUEL_CHANNEL + 1]  # (batch, 1, 1, y, x)
+        return self.model(inputs) + last_fuel
+
+
+def build_model(config: Config, geometry: RunGeometry) -> nn.Module:
+    """The repository's AFNO sequence-to-sequence model, sized for the runs' grid.
+
+    With ``predict_change``, it predicts the change from the last input frame
+    (`ChangeFromLastFrame`). Configurations from before that key existed
+    predict fuel density.
+    """
     _check_model_fits(config, geometry.grid_shape)
-    return AFNONet_Seq2Seq(
+    model = AFNONet_Seq2Seq(
         img_size=geometry.grid_shape,
         patch_size=(config.patch_size, config.patch_size),
         in_chans=len(INPUT_CHANNELS),
@@ -20,6 +43,7 @@ def build_model(config: Config, geometry: RunGeometry) -> AFNONet_Seq2Seq:
         depth=config.depth,
         num_blocks=config.num_blocks,
     )
+    return ChangeFromLastFrame(model) if config.get("predict_change", False) else model
 
 
 def build_loss(config: Config, geometry: RunGeometry) -> PhysicsGuidedLoss:

@@ -2,7 +2,8 @@
 #
 #   python ndp-cat1/train.py --config ndp-cat1/configs/firetec_256x256.yaml
 #
-# Any key can be overridden on the command line, e.g. --max-epochs 5.
+# Any key except storage_options can be overridden on the command line, e.g.
+# --max-epochs 5. train.py stops on an option that is not a key.
 # Keys shared with FourCastNet/configs/*.yaml mean the same as there.
 
 # ------------------------------
@@ -59,20 +60,31 @@ temporal_stride: 1        # Frames between the starts of consecutive samples
 embed_dim: 64
 depth: 4
 num_blocks: 4
+# true: the model predicts the change from the last input frame, which is then
+# added to that frame's fuel density; false: it predicts fuel density. On the
+# 256 x 256 run (training frames, mean of 2 seeds) true cut the RMSE from 0.0060
+# to 0.0035 kg m-3 at embed_dim 64, from 0.0043 to 0.0027 at 128, and from
+# 0.0035 to 0.0025 at 256. Predicting no change scores 0.0025 there.
+predict_change: false
 
 # ------------------------------
 # Physics-based Loss Configuration
 # ------------------------------
 
+# true adds every physics term below whose weight is above 0. While false,
+# those weights and ros_method are ignored and left out of the run's
+# config.yaml. mse_weight scales the fuel density MSE either way.
 physics_loss: false
 mse_weight: 1.0
 fuel_transport_weight: 0.01
 burned_weight: 1.0
 unburned_weight: 1.0
-# The fire-metrics term (burned area and rate of spread) is off. It measures
-# each forecast against the forecast's own first frame, and with it at 0.01
-# this run was fitted about five times worse (RMSE 0.028 against 0.006 kg m-3).
-# If you turn it on: the rate of spread is measured along +x only.
+# The fire-metrics term (burned area and rate of spread) measures each forecast
+# against the forecast's own first frame. Added at 0.01 to the other physics
+# terms, it fitted the 256 x 256 run about five times worse (RMSE 0.028 against
+# 0.006 kg m-3). To try it, set physics_loss: true and this weight above 0, and
+# fuel_transport_weight, burned_weight and unburned_weight to 0 to add only this
+# term. It measures spread along +x only.
 fire_metrics_weight: 0.0
 ros_method: "horizontal_average"
 
@@ -84,8 +96,8 @@ max_epochs: 600
 batch_size: 4             # Samples per optimizer step
 
 # Mixed precision is off: this model trains quickly in float32. If you turn it
-# on, "float16" works only while fire_metrics_weight is 0 (that term becomes
-# NaN in float16), and "bfloat16" rounds fuel density to about 0.002 kg m-3,
+# on, "float16" works only while the fire-metrics term is off (it becomes NaN
+# in float16), and "bfloat16" rounds fuel density to about 0.002 kg m-3,
 # which is as large as the change between two frames.
 enable_amp: false
 mixed_prec_dtype: "float16"    # Used when enable_amp is true; "float16" or "bfloat16"
@@ -95,7 +107,7 @@ mixed_prec_dtype: "float16"    # Used when enable_amp is true; "float16" or "bfl
 # ------------------------------
 
 max_lr: 0.001            # Starting learning rate of the cosine schedule
-min_lr: 1.0e-5            # Learning rate at the last epoch
+min_lr: 1.0e-5            # Learning rate the cosine schedule reaches after max_epochs
 weight_decay: 0.01
 
 # ------------------------------

@@ -90,6 +90,13 @@ def test_store_without_ignition_data_is_rejected(firetec_dataset):
         run_from_store(store, source="test", wind_speed_scale=WIND_SPEED_SCALE)
 
 
+def test_store_with_density_weighted_wind_is_rejected(firetec_dataset):
+    """firetec_to_zarr.py --density-weighted stores rho * u, about 1.16 times the wind."""
+    firetec_dataset["u"].attrs["units"] = "kg m-3 m s-1"
+    with pytest.raises(ValueError, match="density-weighted"):
+        run_from_store(firetec_dataset, source="test", wind_speed_scale=WIND_SPEED_SCALE)
+
+
 def test_store_with_a_missing_output_step_is_rejected(firetec_dataset):
     store = firetec_dataset.drop_isel(time=3)
     with pytest.raises(ValueError, match="unevenly spaced"):
