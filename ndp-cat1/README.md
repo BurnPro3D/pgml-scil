@@ -153,7 +153,7 @@ docker run --rm \
 Arguments after the image name override the configuration's values, as on the command line.
 
 Build and push to container registry on https://gitlab.nrp-nautilus.io/ndp/ndp-cat1,
-with a new tag for every code change (the Jobs run `v0.2.0` now):
+with a new tag for every code change (the Jobs run `v0.3.0` now):
 ```
 TAG=v0.3.0
 docker buildx build --platform linux/amd64 -f ndp-cat1/Dockerfile -t gitlab-registry.nrp-nautilus.io/ndp/ndp-cat1/pgml-firetec:$TAG .
