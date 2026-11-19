@@ -1,0 +1,25 @@
+# Python packages for training the PGML model on FIRETEC Zarr stores.
+# Install with ndp-cat1/setup_env.sh.
+
+# Model, loss and their imports from the repo (common_utils, FourCastNet).
+# Pinned to the versions in ../hard_requirements.txt, so the model behaves as
+# it does in the repo's other trainers.
+torch==2.6.0
+numpy==2.0.2
+einops==0.8.0
+scipy==1.15.1
+scikit-learn==1.6.1
+matplotlib==3.10.0
+cmocean==4.0.3
+transformers==4.48.2
+tqdm==4.67.1
+PyYAML==6.0.2
+
+# Reading FIRETEC Zarr stores, from disk, from S3, or through a Pelican federation.
+xarray>=2025.1
+zarr>=3.0.8
+s3fs>=2025.1
+pelicanfs>=1.5
+
+# Tests
+pytest>=8

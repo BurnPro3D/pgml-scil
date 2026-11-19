@@ -1,0 +1,11 @@
+# Build context for ndp-cat1/Dockerfile, which is the repository root.
+# Docker reads this file instead of a root .dockerignore when building with
+# -f ndp-cat1/Dockerfile. Only the code train.py needs is sent.
+*
+!common_utils
+!FourCastNet
+!ndp-cat1
+ndp-cat1/runs
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
